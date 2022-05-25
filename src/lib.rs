@@ -2,14 +2,16 @@
 //! ```
 //! use actix_cbor::Cbor;
 //!
+//! #[derive(serde::Deserialize)]
 //! struct User {
 //!     name: String,
 //! }
+//! #[derive(serde::Serialize)]
 //! struct Greeting {
 //!     inner: String,
 //! }
 //!
-//! #[get("/users/hello")]
+//! #[actix_web::get("/users/hello")]
 //! pub async fn greet_user(user: Cbor<User>) -> Cbor<Greeting> {
 //!     let name: &str = &user.name;
 //!     let inner: String = format!("Hello {}!", name);
@@ -53,14 +55,16 @@ mod tests;
 /// ```
 /// use actix_cbor::Cbor;
 ///
+/// #[derive(serde::Deserialize)]
 /// struct User {
 ///     name: String,
 /// }
+/// #[derive(serde::Serialize)]
 /// struct Greeting {
 ///     inner: String,
 /// }
 ///
-/// #[get("/users/hello")]
+/// #[actix_web::get("/users/hello")]
 /// pub async fn greet_user(user: Cbor<User>) -> Cbor<Greeting> {
 ///     let name: &str = &user.name;
 ///     let inner: String = format!("Hello {}!", name);
