@@ -26,8 +26,6 @@ use std::ops::{Deref, DerefMut};
 
 use actix_http::http::StatusCode;
 use actix_http::{Payload, PayloadStream, Response};
-#[cfg(feature = "compress")]
-use actix_web::dev::Decompress;
 use actix_web::{FromRequest, HttpRequest, Responder};
 use futures_util::future::{err, ok, LocalBoxFuture, Ready};
 use futures_util::FutureExt;

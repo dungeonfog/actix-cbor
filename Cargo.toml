@@ -12,9 +12,6 @@ categories = ["encoding", "web-programming", "compression", "asynchronous"]
 exclude = ["CHANGELOG.md"]
 publish = false
 
-[features]
-compress = ["actix-web/compress"]
-
 [dependencies]
 log = "0.4.11"
 futures-util = "0.3.5"
