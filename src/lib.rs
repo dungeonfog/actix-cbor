@@ -10,7 +10,6 @@ use std::{
     task::{Context, Poll},
 };
 
-// use bytes::BytesMut;
 use futures_util::{ready, Stream as _};
 use serde::{de::DeserializeOwned, Serialize};
 
@@ -126,19 +125,34 @@ impl<T: Serialize> Responder for Cbor<T> {
     type Body = EitherBody<Vec<u8>>;
 
     fn respond_to(self, _: &HttpRequest) -> HttpResponse<Self::Body> {
-        match serde_cbor::to_vec(&self.0) {
-            Ok(body) => match HttpResponse::Ok()
-                .content_type("application/cbor")
-                .message_body(body)
-            {
-                Ok(res) => res.map_into_left_body(),
-                Err(err) => HttpResponse::from_error(err).map_into_right_body(),
-            },
-
+        let mut buf = Vec::new();
+        let body = match ciborium::ser::into_writer(&self.0, &mut buf) {
+            Ok(()) => buf,
             Err(err) => {
-                HttpResponse::from_error(CborPayloadError::Serialize(err)).map_into_right_body()
+                return HttpResponse::from_error(CborPayloadError::Serialize(err))
+                    .map_into_right_body()
             }
+        };
+        match HttpResponse::Ok()
+            .content_type("application/cbor")
+            .message_body(body)
+        {
+            Ok(res) => res.map_into_left_body(),
+            Err(err) => HttpResponse::from_error(err).map_into_right_body(),
         }
+        // match serde_cbor::to_vec(&self.0) {
+        //     Ok(body) => match HttpResponse::Ok()
+        //         .content_type("application/cbor")
+        //         .message_body(body)
+        //     {
+        //         Ok(res) => res.map_into_left_body(),
+        //         Err(err) => HttpResponse::from_error(err).map_into_right_body(),
+        //     },
+
+        //     Err(err) => {
+        //         HttpResponse::from_error(CborPayloadError::Serialize(err)).map_into_right_body()
+        //     }
+        // }
     }
 }
 
@@ -435,7 +449,7 @@ impl<T: DeserializeOwned> Future for CborBody<T> {
                         }
                     }
                     None => {
-                        let value = serde_cbor::from_slice::<T>(buf)
+                        let value = ciborium::de::from_reader(&**buf)
                             .map_err(CborPayloadError::Deserialize)?;
                         return Poll::Ready(Ok(value));
                     }

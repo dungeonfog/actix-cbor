@@ -7,9 +7,6 @@ use actix_http::{error::PayloadError, StatusCode};
 use actix_web::{HttpResponse, ResponseError};
 
 #[derive(Debug)]
-pub struct CborError(serde_cbor::Error);
-
-#[derive(Debug)]
 pub enum CborPayloadError {
     OverflowKnownLength {
         length: usize,
@@ -22,9 +19,9 @@ pub enum CborPayloadError {
     /// Content type error
     ContentType,
     /// Deserialize error
-    Deserialize(serde_cbor::Error),
+    Deserialize(ciborium::de::Error<std::io::Error>),
     /// Serialize error
-    Serialize(serde_cbor::Error),
+    Serialize(ciborium::ser::Error<std::io::Error>),
     /// Payload error
     Payload(PayloadError),
 }

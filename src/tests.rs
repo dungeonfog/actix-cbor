@@ -22,7 +22,12 @@ impl MyObject {
         Self::cbor_with_name("test")
     }
     pub fn cbor_with_name(name: impl Into<String>) -> Vec<u8> {
-        serde_cbor::to_vec(&Self { name: name.into() }).unwrap()
+        Self { name: name.into() }.to_cbor()
+    }
+    pub fn to_cbor(&self) -> Vec<u8> {
+        let mut buf = Vec::new();
+        ciborium::ser::into_writer(self, &mut buf).unwrap();
+        buf
     }
 }
 
@@ -46,7 +51,7 @@ async fn test_responder() {
     let obj = MyObject {
         name: "test".to_string(),
     };
-    let cbor = serde_cbor::to_vec(&obj).unwrap();
+    let cbor = obj.to_cbor();
     let j = Cbor(obj);
     let res = j.respond_to(&req);
     assert_eq!(res.status(), StatusCode::OK);
@@ -73,7 +78,7 @@ async fn test_custom_error_responder() {
             let msg = MyObject {
                 name: "invalid request".to_string(),
             };
-            let resp = HttpResponse::BadRequest().body(serde_cbor::to_vec(&msg).unwrap());
+            let resp = HttpResponse::BadRequest().body(msg.to_cbor());
             InternalError::from_response(err, resp).into()
         }))
         .to_http_parts();
@@ -83,7 +88,7 @@ async fn test_custom_error_responder() {
     assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
 
     let body = body::to_bytes(resp.into_body()).await.unwrap();
-    let msg: MyObject = serde_cbor::from_slice(&body).unwrap();
+    let msg: MyObject = ciborium::de::from_reader(&*body).unwrap();
     assert_eq!(msg.name, "invalid request");
 }
 
@@ -186,10 +191,7 @@ async fn test_cbor_body() {
         CborPayloadError::Overflow { limit: 100 }
     ));
 
-    let data = serde_cbor::to_vec(&MyObject {
-        name: "test".to_owned(),
-    })
-    .unwrap();
+    let data = MyObject::cbor();
     let (req, mut pl) = TestRequest::default()
         .insert_header((
             header::CONTENT_TYPE,
