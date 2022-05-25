@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use actix_web::{HttpRequest, web};
+use actix_web::{web, HttpRequest};
 
 use crate::CborPayloadError;
 
@@ -14,8 +14,8 @@ const DEFAULT_CONFIG: CborConfig = CborConfig {
 #[derive(Clone)]
 pub struct CborConfig {
     pub(crate) limit: usize,
-    pub(crate) err_handler: Option<Arc<dyn Fn(CborPayloadError, &HttpRequest) -> actix_web::Error
-    + Send + Sync>>,
+    pub(crate) err_handler:
+        Option<Arc<dyn Fn(CborPayloadError, &HttpRequest) -> actix_web::Error + Send + Sync>>,
     pub(crate) content_type: Option<Arc<dyn Fn(&str) -> bool + Send + Sync>>,
 }
 
@@ -34,8 +34,8 @@ impl CborConfig {
 
     /// Set custom error handler
     pub fn error_handler<F>(mut self, f: F) -> Self
-        where
-            F: Fn(CborPayloadError, &HttpRequest) -> actix_web::Error + Send + Sync + 'static,
+    where
+        F: Fn(CborPayloadError, &HttpRequest) -> actix_web::Error + Send + Sync + 'static,
     {
         self.err_handler = Some(Arc::new(f));
         self
@@ -43,8 +43,8 @@ impl CborConfig {
 
     /// Set predicate for allowed content types
     pub fn content_type_raw<F>(mut self, predicate: F) -> Self
-        where
-            F: Fn(&str) -> bool + Send + Sync + 'static,
+    where
+        F: Fn(&str) -> bool + Send + Sync + 'static,
     {
         self.content_type = Some(Arc::new(predicate));
         self
@@ -55,6 +55,6 @@ impl CborConfig {
     pub(crate) fn from_req(req: &HttpRequest) -> &Self {
         req.app_data::<Self>()
             .or_else(|| req.app_data::<web::Data<Self>>().map(|d| d.as_ref()))
-            .unwrap_or_else(|| &DEFAULT_CONFIG)
+            .unwrap_or(&DEFAULT_CONFIG)
     }
 }

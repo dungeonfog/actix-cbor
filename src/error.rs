@@ -1,11 +1,10 @@
 use std::error::Error;
-use std::fmt;
+use std::fmt::{self, Display, Formatter};
 
 use actix_http::error::PayloadError;
 use actix_http::http::StatusCode;
 use actix_http::ResponseError;
 use actix_web::HttpResponse;
-use futures_util::core_reexport::fmt::{Display, Formatter};
 
 #[derive(Debug)]
 pub struct CborError(serde_cbor::Error);
@@ -61,9 +60,7 @@ impl Error for CborPayloadError {}
 impl ResponseError for CborPayloadError {
     fn error_response(&self) -> HttpResponse {
         match *self {
-            CborPayloadError::Overflow => {
-                HttpResponse::new(StatusCode::PAYLOAD_TOO_LARGE)
-            }
+            CborPayloadError::Overflow => HttpResponse::new(StatusCode::PAYLOAD_TOO_LARGE),
             _ => HttpResponse::new(StatusCode::BAD_REQUEST),
         }
     }

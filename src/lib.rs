@@ -21,16 +21,15 @@
 #[macro_use]
 extern crate serde;
 
-use std::fmt;
+use std::fmt::{self, Formatter};
 use std::ops::{Deref, DerefMut};
 
-use actix_http::{Payload, PayloadStream, Response};
 use actix_http::http::StatusCode;
-use actix_web::{FromRequest, HttpRequest, Responder};
+use actix_http::{Payload, PayloadStream, Response};
 #[cfg(feature = "compress")]
 use actix_web::dev::Decompress;
-use futures_util::core_reexport::fmt::Formatter;
-use futures_util::future::{err, LocalBoxFuture, ok, Ready};
+use actix_web::{FromRequest, HttpRequest, Responder};
+use futures_util::future::{err, ok, LocalBoxFuture, Ready};
 use futures_util::FutureExt;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
@@ -39,9 +38,9 @@ pub use body::*;
 pub use config::*;
 pub use error::*;
 
-mod error;
-mod config;
 mod body;
+mod config;
+mod error;
 
 #[cfg(test)]
 mod tests;
@@ -93,20 +92,26 @@ impl<T> DerefMut for Cbor<T> {
     }
 }
 
-impl<T> fmt::Debug for Cbor<T> where T: fmt::Debug {
+impl<T> fmt::Debug for Cbor<T>
+where
+    T: fmt::Debug,
+{
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "Cbor: {:?}", self.0)
     }
 }
 
-impl<T> Responder for Cbor<T> where T: Serialize {
+impl<T> Responder for Cbor<T>
+where
+    T: Serialize,
+{
     type Error = CborError;
     type Future = Ready<Result<Response, Self::Error>>;
 
     fn respond_to(self, _: &HttpRequest) -> Self::Future {
         let body = match serde_cbor::to_vec(&self.0) {
             Ok(body) => body,
-            Err(e) => return err(e.into())
+            Err(e) => return err(e.into()),
         };
 
         ok(Response::build(StatusCode::OK)
@@ -115,7 +120,10 @@ impl<T> Responder for Cbor<T> where T: Serialize {
     }
 }
 
-impl<T> FromRequest for Cbor<T> where T: DeserializeOwned + 'static {
+impl<T> FromRequest for Cbor<T>
+where
+    T: DeserializeOwned + 'static,
+{
     type Error = actix_web::Error;
     type Future = LocalBoxFuture<'static, Result<Self, Self::Error>>;
     type Config = CborConfig;
