@@ -1,16 +1,18 @@
-use std::future::Future;
-use std::pin::Pin;
-use std::sync::Arc;
-use std::task::{Context, Poll};
+use std::{
+    future::Future,
+    pin::Pin,
+    sync::Arc,
+    task::{Context, Poll},
+};
 
-use actix_http::header::CONTENT_LENGTH;
-use actix_http::{HttpMessage, Payload};
+use actix_http::{header::CONTENT_LENGTH, HttpMessage, Payload};
 #[cfg(feature = "compress")]
 use actix_web::dev::Decompress;
-use actix_web::web::BytesMut;
-use actix_web::HttpRequest;
-use futures_util::future::{FutureExt, LocalBoxFuture};
-use futures_util::StreamExt;
+use actix_web::{web::BytesMut, HttpRequest};
+use futures_util::{
+    future::{FutureExt, LocalBoxFuture},
+    StreamExt,
+};
 use serde::de::DeserializeOwned;
 
 use crate::CborPayloadError;

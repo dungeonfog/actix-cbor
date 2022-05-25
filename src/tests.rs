@@ -1,10 +1,11 @@
 use super::*;
-use actix_http::body::MessageBody;
-use actix_http::StatusCode;
-use actix_web::error::InternalError;
-use actix_web::http::header::{self, HeaderValue, CONTENT_LENGTH, CONTENT_TYPE};
+use actix_http::{body::MessageBody, StatusCode};
 use actix_web::test::TestRequest;
-use actix_web::{web, HttpResponse};
+use actix_web::{
+    error::InternalError,
+    http::header::{self, HeaderValue, CONTENT_LENGTH, CONTENT_TYPE},
+    web, HttpResponse,
+};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]

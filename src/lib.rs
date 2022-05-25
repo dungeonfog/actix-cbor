@@ -19,16 +19,15 @@
 //! }
 //! ```
 
-use std::fmt::{self, Formatter};
-use std::ops::{Deref, DerefMut};
+use std::{
+    fmt::{self, Formatter},
+    ops::{Deref, DerefMut},
+};
 
-use actix_http::body::EitherBody;
-use actix_http::{BoxedPayloadStream, Payload};
+use actix_http::{body::EitherBody, BoxedPayloadStream, Payload};
 use actix_web::{FromRequest, HttpRequest, HttpResponse, Responder};
-use futures_util::future::LocalBoxFuture;
-use futures_util::FutureExt;
-use serde::de::DeserializeOwned;
-use serde::Serialize;
+use futures_util::{future::LocalBoxFuture, FutureExt};
+use serde::{de::DeserializeOwned, Serialize};
 
 pub use body::*;
 pub use config::*;
@@ -128,11 +127,11 @@ where
 
     fn from_request(req: &HttpRequest, payload: &mut Payload<BoxedPayloadStream>) -> Self::Future {
         let req2 = req.clone();
-        let config = CborConfig::from_req(req);
-
-        let limit = config.limit;
-        let ctype = config.content_type.clone();
-        let err_handler = config.err_handler.clone();
+        let CborConfig {
+            limit,
+            err_handler,
+            content_type: ctype,
+        } = CborConfig::from_req(req).clone();
 
         CborBody::new(req, payload, ctype)
             .limit(limit)

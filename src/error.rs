@@ -1,10 +1,10 @@
-use std::error::Error;
-use std::fmt::{self, Display, Formatter};
+use std::{
+    error::Error,
+    fmt::{self, Display, Formatter},
+};
 
-use actix_http::error::PayloadError;
-use actix_http::StatusCode;
-use actix_web::HttpResponse;
-use actix_web::ResponseError;
+use actix_http::{error::PayloadError, StatusCode};
+use actix_web::{HttpResponse, ResponseError};
 
 #[derive(Debug)]
 pub struct CborError(serde_cbor::Error);
