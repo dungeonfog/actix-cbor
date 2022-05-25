@@ -19,10 +19,6 @@
 //! }
 //! ```
 
-#[cfg(test)]
-#[macro_use]
-extern crate serde;
-
 use std::fmt::{self, Formatter};
 use std::ops::{Deref, DerefMut};
 

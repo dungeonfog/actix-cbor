@@ -4,6 +4,7 @@ use actix_web::error::InternalError;
 use actix_web::http::header::{self, HeaderValue, CONTENT_LENGTH, CONTENT_TYPE};
 use actix_web::test::{load_stream, TestRequest};
 use actix_web::{web, HttpResponse};
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 struct MyObject {
