@@ -1,8 +1,9 @@
 use super::*;
-use actix_http::body::Body;
+use actix_http::body::MessageBody;
+use actix_http::StatusCode;
 use actix_web::error::InternalError;
 use actix_web::http::header::{self, HeaderValue, CONTENT_LENGTH, CONTENT_TYPE};
-use actix_web::test::{load_stream, TestRequest};
+use actix_web::test::TestRequest;
 use actix_web::{web, HttpResponse};
 use serde::{Deserialize, Serialize};
 
@@ -44,35 +45,26 @@ async fn test_responder() {
     let encoded = get_test_bytes();
 
     let j = Cbor(obj.clone());
-    let resp = j.respond_to(&req).await.unwrap();
+    let resp = j.respond_to(&req);
     assert_eq!(resp.status(), StatusCode::OK);
     assert_eq!(
         resp.headers().get(header::CONTENT_TYPE).unwrap(),
         header::HeaderValue::from_static("application/cbor")
     );
 
-    let body = resp.body();
-    let payload = body.as_ref().unwrap();
+    let body = resp.into_body().try_into_bytes().unwrap();
 
-    if let Body::Bytes(b) = payload {
-        assert_eq!(&encoded, b);
+    assert_eq!(encoded, body);
 
-        let decoded: MyObject = serde_cbor::from_slice(b).unwrap();
-        assert_eq!(obj, decoded);
-    }
+    let decoded: MyObject = serde_cbor::from_slice(&body).unwrap();
+    assert_eq!(obj, decoded);
 }
 
 #[actix_rt::test]
 async fn test_custom_error_responder() {
     let (req, mut pl) = TestRequest::default()
-        .header(
-            header::CONTENT_TYPE,
-            header::HeaderValue::from_static("application/cbor"),
-        )
-        .header(
-            header::CONTENT_LENGTH,
-            header::HeaderValue::from_static("16"),
-        )
+        .insert_header((header::CONTENT_TYPE, "application/cbor"))
+        .insert_header((header::CONTENT_LENGTH, "16"))
         .set_payload(get_test_bytes())
         .app_data(CborConfig::default().limit(10).error_handler(|err, _| {
             let msg = MyObject::default();
@@ -82,10 +74,10 @@ async fn test_custom_error_responder() {
         .to_http_parts();
 
     let s = Cbor::<MyObject>::from_request(&req, &mut pl).await;
-    let mut resp = Response::from_error(s.err().unwrap());
+    let resp = HttpResponse::from_error(s.err().unwrap());
     assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
 
-    let body = load_stream(resp.take_body()).await.unwrap();
+    let body = resp.into_body().try_into_bytes().unwrap();
     let msg: MyObject = serde_cbor::from_slice(&body).unwrap();
     assert_eq!(msg.name, "test");
 }
@@ -93,14 +85,11 @@ async fn test_custom_error_responder() {
 #[actix_rt::test]
 async fn test_extract() {
     let (req, mut pl) = TestRequest::default()
-        .header(
-            header::CONTENT_TYPE,
-            header::HeaderValue::from_static("application/cbor"),
-        )
-        .header(
+        .insert_header((header::CONTENT_TYPE, "application/cbor"))
+        .insert_header((
             header::CONTENT_LENGTH,
             header::HeaderValue::from_static("16"),
-        )
+        ))
         .set_payload(get_test_bytes())
         .to_http_parts();
 
@@ -109,14 +98,14 @@ async fn test_extract() {
     assert_eq!(s.into_inner(), MyObject::default());
 
     let (req, mut pl) = TestRequest::default()
-        .header(
+        .insert_header((
             header::CONTENT_TYPE,
             header::HeaderValue::from_static("application/cbor"),
-        )
-        .header(
+        ))
+        .insert_header((
             header::CONTENT_LENGTH,
             header::HeaderValue::from_static("16"),
-        )
+        ))
         .set_payload(get_test_bytes())
         .app_data(CborConfig::default().limit(10))
         .to_http_parts();
@@ -125,14 +114,14 @@ async fn test_extract() {
     assert!(format!("{}", s.err().unwrap()).contains("Cbor payload size is bigger than allowed"));
 
     let (req, mut pl) = TestRequest::default()
-        .header(
+        .insert_header((
             header::CONTENT_TYPE,
             header::HeaderValue::from_static("application/cbor"),
-        )
-        .header(
+        ))
+        .insert_header((
             header::CONTENT_LENGTH,
             header::HeaderValue::from_static("16"),
-        )
+        ))
         .set_payload(get_test_bytes())
         .app_data(
             CborConfig::default()
@@ -151,23 +140,23 @@ async fn test_cbor_body() {
     assert!(cbor_eq(cbor.err().unwrap(), CborPayloadError::ContentType));
 
     let (req, mut pl) = TestRequest::default()
-        .header(
+        .insert_header((
             header::CONTENT_TYPE,
             header::HeaderValue::from_static("application/text"),
-        )
+        ))
         .to_http_parts();
     let cbor = CborBody::<MyObject>::new(&req, &mut pl, None).await;
     assert!(cbor_eq(cbor.err().unwrap(), CborPayloadError::ContentType));
 
     let (req, mut pl) = TestRequest::default()
-        .header(
+        .insert_header((
             header::CONTENT_TYPE,
             header::HeaderValue::from_static("application/cbor"),
-        )
-        .header(
+        ))
+        .insert_header((
             header::CONTENT_LENGTH,
             header::HeaderValue::from_static("10000"),
-        )
+        ))
         .to_http_parts();
 
     let cbor = CborBody::<MyObject>::new(&req, &mut pl, None)
@@ -176,14 +165,14 @@ async fn test_cbor_body() {
     assert!(cbor_eq(cbor.err().unwrap(), CborPayloadError::Overflow));
 
     let (req, mut pl) = TestRequest::default()
-        .header(
+        .insert_header((
             header::CONTENT_TYPE,
             header::HeaderValue::from_static("application/cbor"),
-        )
-        .header(
+        ))
+        .insert_header((
             header::CONTENT_LENGTH,
             header::HeaderValue::from_static("16"),
-        )
+        ))
         .set_payload(get_test_bytes())
         .to_http_parts();
 
@@ -193,17 +182,18 @@ async fn test_cbor_body() {
 
 #[actix_rt::test]
 async fn test_with_cbor_and_bad_content_type() {
-    let (req, mut pl) = TestRequest::with_header(
-        header::CONTENT_TYPE,
-        header::HeaderValue::from_static("text/plain"),
-    )
-    .header(
-        header::CONTENT_LENGTH,
-        header::HeaderValue::from_static("16"),
-    )
-    .set_payload(get_test_bytes())
-    .app_data(CborConfig::default().limit(4096))
-    .to_http_parts();
+    let (req, mut pl) = TestRequest::default()
+        .insert_header((
+            header::CONTENT_TYPE,
+            header::HeaderValue::from_static("text/plain"),
+        ))
+        .insert_header((
+            header::CONTENT_LENGTH,
+            header::HeaderValue::from_static("16"),
+        ))
+        .set_payload(get_test_bytes())
+        .app_data(CborConfig::default().limit(4096))
+        .to_http_parts();
 
     let s = Cbor::<MyObject>::from_request(&req, &mut pl).await;
     assert!(s.is_err())
@@ -211,17 +201,18 @@ async fn test_with_cbor_and_bad_content_type() {
 
 #[actix_rt::test]
 async fn test_with_cbor_and_good_custom_content_type() {
-    let (req, mut pl) = TestRequest::with_header(
-        header::CONTENT_TYPE,
-        header::HeaderValue::from_static("text/plain"),
-    )
-    .header(
-        header::CONTENT_LENGTH,
-        header::HeaderValue::from_static("16"),
-    )
-    .set_payload(get_test_bytes())
-    .app_data(CborConfig::default().content_type_raw(|mime: &str| mime == "text/plain"))
-    .to_http_parts();
+    let (req, mut pl) = TestRequest::default()
+        .insert_header((
+            header::CONTENT_TYPE,
+            header::HeaderValue::from_static("text/plain"),
+        ))
+        .insert_header((
+            header::CONTENT_LENGTH,
+            header::HeaderValue::from_static("16"),
+        ))
+        .set_payload(get_test_bytes())
+        .app_data(CborConfig::default().content_type_raw(|mime: &str| mime == "text/plain"))
+        .to_http_parts();
 
     let s = Cbor::<MyObject>::from_request(&req, &mut pl).await;
     assert!(s.is_ok())
@@ -229,17 +220,18 @@ async fn test_with_cbor_and_good_custom_content_type() {
 
 #[actix_rt::test]
 async fn test_with_cbor_and_bad_custom_content_type() {
-    let (req, mut pl) = TestRequest::with_header(
-        header::CONTENT_TYPE,
-        header::HeaderValue::from_static("text/html"),
-    )
-    .header(
-        header::CONTENT_LENGTH,
-        header::HeaderValue::from_static("16"),
-    )
-    .set_payload(get_test_bytes())
-    .app_data(CborConfig::default().content_type_raw(|mime: &str| mime == "text/plain"))
-    .to_http_parts();
+    let (req, mut pl) = TestRequest::default()
+        .insert_header((
+            header::CONTENT_TYPE,
+            header::HeaderValue::from_static("text/html"),
+        ))
+        .insert_header((
+            header::CONTENT_LENGTH,
+            header::HeaderValue::from_static("16"),
+        ))
+        .set_payload(get_test_bytes())
+        .app_data(CborConfig::default().content_type_raw(|mime: &str| mime == "text/plain"))
+        .to_http_parts();
 
     let s = Cbor::<MyObject>::from_request(&req, &mut pl).await;
     assert!(s.is_err())
@@ -248,8 +240,8 @@ async fn test_with_cbor_and_bad_custom_content_type() {
 #[actix_rt::test]
 async fn test_with_config_in_data_wrapper() {
     let (req, mut pl) = TestRequest::default()
-        .header(CONTENT_TYPE, HeaderValue::from_static("application/cbor"))
-        .header(CONTENT_LENGTH, HeaderValue::from_static("16"))
+        .insert_header((CONTENT_TYPE, HeaderValue::from_static("application/cbor")))
+        .insert_header((CONTENT_LENGTH, HeaderValue::from_static("16")))
         .set_payload(get_test_bytes())
         .app_data(web::Data::new(CborConfig::default().limit(10)))
         .to_http_parts();

@@ -22,10 +22,10 @@
 use std::fmt::{self, Formatter};
 use std::ops::{Deref, DerefMut};
 
-use actix_http::http::StatusCode;
-use actix_http::{Payload, PayloadStream, Response};
-use actix_web::{FromRequest, HttpRequest, Responder};
-use futures_util::future::{err, ok, LocalBoxFuture, Ready};
+use actix_http::body::EitherBody;
+use actix_http::{BoxedPayloadStream, Payload};
+use actix_web::{FromRequest, HttpRequest, HttpResponse, Responder};
+use futures_util::future::LocalBoxFuture;
 use futures_util::FutureExt;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
@@ -103,18 +103,19 @@ impl<T> Responder for Cbor<T>
 where
     T: Serialize,
 {
-    type Error = CborError;
-    type Future = Ready<Result<Response, Self::Error>>;
+    type Body = EitherBody<Vec<u8>>;
 
-    fn respond_to(self, _: &HttpRequest) -> Self::Future {
-        let body = match serde_cbor::to_vec(&self.0) {
-            Ok(body) => body,
-            Err(e) => return err(e.into()),
-        };
-
-        ok(Response::build(StatusCode::OK)
-            .content_type("application/cbor")
-            .body(body))
+    fn respond_to(self, _: &HttpRequest) -> HttpResponse<Self::Body> {
+        match serde_cbor::to_vec(&self.0) {
+            Ok(body) => match HttpResponse::Ok()
+                .content_type("application/cbor")
+                .message_body(body)
+            {
+                Ok(res) => res.map_into_left_body(),
+                Err(err) => HttpResponse::from_error(err).map_into_right_body(),
+            },
+            Err(err) => HttpResponse::from_error(CborPayloadError::from(err)).map_into_right_body(),
+        }
     }
 }
 
@@ -124,9 +125,8 @@ where
 {
     type Error = actix_web::Error;
     type Future = LocalBoxFuture<'static, Result<Self, Self::Error>>;
-    type Config = CborConfig;
 
-    fn from_request(req: &HttpRequest, payload: &mut Payload<PayloadStream>) -> Self::Future {
+    fn from_request(req: &HttpRequest, payload: &mut Payload<BoxedPayloadStream>) -> Self::Future {
         let req2 = req.clone();
         let config = CborConfig::from_req(req);
 

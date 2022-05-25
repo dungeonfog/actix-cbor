@@ -3,12 +3,12 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 
+use actix_http::header::CONTENT_LENGTH;
 use actix_http::{HttpMessage, Payload};
-use actix_http::http::header::CONTENT_LENGTH;
 #[cfg(feature = "compress")]
 use actix_web::dev::Decompress;
-use actix_web::HttpRequest;
 use actix_web::web::BytesMut;
+use actix_web::HttpRequest;
 use futures_util::future::{FutureExt, LocalBoxFuture};
 use futures_util::StreamExt;
 use serde::de::DeserializeOwned;
@@ -35,8 +35,8 @@ pub struct CborBody<U> {
 }
 
 impl<U> CborBody<U>
-    where
-        U: DeserializeOwned + 'static,
+where
+    U: DeserializeOwned + 'static,
 {
     /// Create `CborBody` for request.
     pub fn new(
@@ -46,10 +46,9 @@ impl<U> CborBody<U>
     ) -> Self {
         // check content-type
         let mime = req.content_type();
-        let is_good_mime =
-            mime == "application/cbor"
-                || mime == "cbor"
-                || ctype.as_ref().map_or(false, |predicate| predicate(mime));
+        let is_good_mime = mime == "application/cbor"
+            || mime == "cbor"
+            || ctype.as_ref().map_or(false, |predicate| predicate(mime));
 
         if !is_good_mime {
             return CborBody {
@@ -68,9 +67,9 @@ impl<U> CborBody<U>
             .and_then(|s| s.parse::<usize>().ok());
 
         #[cfg(feature = "compress")]
-            let payload = Decompress::from_headers(payload.take(), req.headers());
+        let payload = Decompress::from_headers(payload.take(), req.headers());
         #[cfg(not(feature = "compress"))]
-            let payload = payload.take();
+        let payload = payload.take();
 
         CborBody {
             limit: 262_144,
@@ -89,8 +88,8 @@ impl<U> CborBody<U>
 }
 
 impl<U> Future for CborBody<U>
-    where
-        U: DeserializeOwned + 'static,
+where
+    U: DeserializeOwned + 'static,
 {
     type Output = Result<U, CborPayloadError>;
 
@@ -125,7 +124,7 @@ impl<U> Future for CborBody<U>
                 }
                 Ok(serde_cbor::from_slice::<U>(&body)?)
             }
-                .boxed_local(),
+            .boxed_local(),
         );
 
         self.poll(cx)

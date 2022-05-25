@@ -12,19 +12,28 @@ categories = ["encoding", "web-programming", "compression", "asynchronous"]
 exclude = ["CHANGELOG.md"]
 publish = false
 
+[features]
+compress = ["actix-web/__compress"]
+
 [dependencies]
-log = "0.4.11"
-futures-util = "0.3.5"
-serde_cbor = "0.11.1"
-serde = "^1.0.0"
-actix-http = "^2.0.0"
-actix-rt = "^1.0.0"
-bytes = "0.5.6"
+log = "0.4.17"
+futures-util = "0.3.21"
+serde_cbor = "0.11.2"
+serde = "1.0.137"
+actix-http = "3.0.4"
+bytes = "1.1.0"
 
 [dependencies.actix-web]
-version = "^3.0.0"
+version = "4.0.1"
 default-features = false
 
+[dev-dependencies]
+actix-rt = "2.7.0"
+
 [dev-dependencies.serde]
-version = "^1.0.0"
+version = "1.0.137"
 features = ["derive"]
+
+[dev-dependencies.actix-web]
+version = "4.0.1"
+features = ["macros"]
